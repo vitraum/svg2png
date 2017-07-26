@@ -70,6 +70,7 @@ func main() {
 	mux.HandleFunc("/v1/svg-html/", htmlHandler)
 	mux.HandleFunc("/v1/svg-data/", dataHandler(images))
 	mux.HandleFunc("/v1/png", mainHandler(images, chromes, selfURL))
+	mux.HandleFunc("/healthz", healthzHandler)
 
 	logrus.Debugf("listening on :%d", *flagPort)
 	http.ListenAndServe(fmt.Sprintf(":%d", *flagPort), mux)
@@ -185,4 +186,8 @@ func mainHandler(images *imageMap, chromes chan *cdp.CDP, selfURL string) http.H
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(res)
 	}
+}
+
+func healthzHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("OK\n"))
 }
