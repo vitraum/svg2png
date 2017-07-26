@@ -9,11 +9,12 @@ services:
       - SVG2PNG_TIMEOUT=30
       - SVG2PNG_SELF=svg2png
   chrome0:
-    image: knqz/chrome-headless:61.0.3114.2
+    #image: knqz/chrome-headless:61.0.3114.2
+    image: yukinying/chrome-headless:61.0.3163.2
   chrome1:
-    image: knqz/chrome-headless:61.0.3114.2
+    image: yukinying/chrome-headless:61.0.3163.2
   chrome2:
-    image: knqz/chrome-headless:61.0.3114.2
+    image: yukinying/chrome-headless:61.0.3163.2
   chrome3:
-    image: knqz/chrome-headless:61.0.3114.2
+    image: yukinying/chrome-headless:61.0.3163.2
 
