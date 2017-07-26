@@ -17,7 +17,7 @@ services:
       - --hide-scrollbars
       - --remote-debugging-address=0.0.0.0
       - --remote-debugging-port=9223
-     ports:
+    ports:
       - "9223:9223"
   chrome1:
     image: yukinying/chrome-headless:61.0.3163.2
