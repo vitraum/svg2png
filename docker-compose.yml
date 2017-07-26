@@ -6,13 +6,14 @@ services:
       - "8544:8544"
     environment:
       - SVG2PNG_URL=http://chrome0:9222/json,http://chrome1:9222/json,http://chrome2:9222/json,http://chrome3:9222/json
-      - SVG2PNG_TIMEOUT=60
+      - SVG2PNG_TIMEOUT=30
+      - SVG2PNG_SELF=svg2png
   chrome0:
-    image: knqz/chrome-headless
+    image: knqz/chrome-headless:61.0.3114.2
   chrome1:
-    image: knqz/chrome-headless
+    image: knqz/chrome-headless:61.0.3114.2
   chrome2:
-    image: knqz/chrome-headless
+    image: knqz/chrome-headless:61.0.3114.2
   chrome3:
-    image: knqz/chrome-headless
+    image: knqz/chrome-headless:61.0.3114.2
 
