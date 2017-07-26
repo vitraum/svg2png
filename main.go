@@ -58,17 +58,18 @@ func main() {
 	flagPort := fs.Int("port", 8544, "port to listen to")
 	flagTimeout := fs.Int("timeout", 30, "initial timeout")
 	flagURLs := fs.String("url", "http://localhost:9222/json", "urls to chrome (csv)")
+	flagSelf := fs.String("self", "svg2png", "url under which chrome can reach this service (port is added automatically)")
 	fs.Parse(os.Args[1:])
 
+	selfURL := fmt.Sprintf("http://%s:%d/v1/svg-html/", *flagSelf, *flagPort)
 	logrus.SetLevel(logrus.DebugLevel)
-
 	chromes := createCDPClients(*flagURLs, *flagTimeout)
 	images := NewImageMap()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/svg-html/", htmlHandler)
 	mux.HandleFunc("/v1/svg-data/", dataHandler(images))
-	mux.HandleFunc("/v1/png", mainHandler(images, chromes))
+	mux.HandleFunc("/v1/png", mainHandler(images, chromes, selfURL))
 
 	logrus.Debugf("listening on :%d", *flagPort)
 	http.ListenAndServe(fmt.Sprintf(":%d", *flagPort), mux)
@@ -151,7 +152,7 @@ func dataHandler(images *imageMap) http.HandlerFunc {
 	}
 }
 
-func mainHandler(images *imageMap, chromes chan *cdp.CDP) http.HandlerFunc {
+func mainHandler(images *imageMap, chromes chan *cdp.CDP, selfURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := sha256.New()
 		h.Write([]byte(time.Now().UTC().String()))
@@ -164,7 +165,7 @@ func mainHandler(images *imageMap, chromes chan *cdp.CDP) http.HandlerFunc {
 		ch := fmt.Sprintf("%x.svg", h.Sum([]byte{}))
 		images.Add(ch, body)
 		defer images.Remove(ch)
-		imageURL, err := url.Parse(fmt.Sprintf("http://svg2png:8544/v1/svg-html/%s", ch))
+		imageURL, err := url.Parse(fmt.Sprintf("%s%s", selfURL, ch))
 		if err != nil {
 			logrus.Warn(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
