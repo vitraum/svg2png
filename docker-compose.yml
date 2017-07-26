@@ -1,0 +1,18 @@
+version: '3.3'
+services:
+  svg2png:
+    build: .
+    ports:
+      - "8544:8544"
+    environment:
+      - SVG2PNG_URL=http://chrome0:9222/json,http://chrome1:9222/json,http://chrome2:9222/json,http://chrome3:9222/json
+      - SVG2PNG_TIMEOUT=60
+  chrome0:
+    image: knqz/chrome-headless
+  chrome1:
+    image: knqz/chrome-headless
+  chrome2:
+    image: knqz/chrome-headless
+  chrome3:
+    image: knqz/chrome-headless
+
