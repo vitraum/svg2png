@@ -1,6 +1,0 @@
-FROM scratch
-WORKDIR /app
-COPY ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-ENTRYPOINT ["./svg2png"]
-COPY svg2png /app/
-
