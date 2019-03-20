@@ -27,4 +27,4 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/knq/chromedp"
+  name = "github.com/chromedp/chromedp"

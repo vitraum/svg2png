@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
-	"log"
+	"net"
 	"os"
 
 	"fmt"
@@ -16,9 +16,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	cdp "github.com/knq/chromedp"
-	"github.com/knq/chromedp/client"
+	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/client"
 	"github.com/namsral/flag"
+	"github.com/pkg/errors"
 )
 
 type imageMap struct {
@@ -57,13 +58,21 @@ func main() {
 	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], "SVG2PNG", 0)
 	flagPort := fs.Int("port", 8544, "port to listen to")
 	flagTimeout := fs.Int("timeout", 30, "initial timeout")
-	flagURLs := fs.String("url", "http://localhost:9222/json", "urls to chrome (csv)")
+	flagURLs := fs.String("urls", "", "urls to chrome rdp (csv)")
+	flagHosts := fs.String("hosts", "", "hosts with running chrome rdp (csv)")
 	flagSelf := fs.String("self", "svg2png", "url under which chrome can reach this service (port is added automatically)")
 	fs.Parse(os.Args[1:])
 
+	if *flagHosts == "" && *flagURLs == "" {
+		*flagURLs = "http://localhost:9222/json"
+	}
+
 	selfURL := fmt.Sprintf("http://%s:%d/v1/svg-html/", *flagSelf, *flagPort)
 	logrus.SetLevel(logrus.DebugLevel)
-	chromes := createCDPClients(*flagURLs, *flagTimeout)
+	chromes, err := createCDPClients(*flagURLs, *flagHosts, *flagTimeout)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 	images := NewImageMap()
 
 	mux := http.NewServeMux()
@@ -76,36 +85,60 @@ func main() {
 	http.ListenAndServe(fmt.Sprintf(":%d", *flagPort), mux)
 }
 
-func fetchImages(url *url.URL, res *[]byte) cdp.Tasks {
+func fetchImages(url *url.URL, res *[]byte) chromedp.Tasks {
 	sel := `#svg`
-	return cdp.Tasks{
-		cdp.Navigate(url.String()),
-		//cdp.Sleep(2000 * time.Millisecond),
-		cdp.WaitVisible(sel, cdp.ByID),
-		//cdp.WaitNotVisible(`div.v-middle > div.la-ball-clip-rotate`, cdp.ByQuery),
-		cdp.Screenshot(sel, res, cdp.NodeVisible, cdp.ByID),
-		//cdp.CaptureScreenshot(res),
+	return chromedp.Tasks{
+		chromedp.Navigate(url.String()),
+		//chromedp.Sleep(2000 * time.Millisecond),
+		chromedp.WaitVisible(sel, chromedp.ByID),
+		//chromedp.WaitNotVisible(`div.v-middle > div.la-ball-clip-rotate`, chromedp.ByQuery),
+		chromedp.Screenshot(sel, res, chromedp.NodeVisible, chromedp.ByID),
+		//chromedp.CaptureScreenshot(res),
 	}
 }
 
-func createCDPClients(url string, timeout int) chan *cdp.CDP {
-	urls := strings.Split(url, ",")
+func createCDPClients(url, host string, timeout int) (chan *chromedp.CDP, error) {
+	if url != "" && host != "" {
+		return nil, fmt.Errorf("url and host parameters are mutually exclusive(u:'%s', h:'%s'", url, host)
+	}
+	var urls []string
+	switch {
+	case host != "":
+		urls = make([]string, 0, 5)
+		for _, h := range strings.Split(host, ",") {
+			addrs, err := net.LookupHost(h)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not resolve '%s'", h)
+			}
+			for _, a := range addrs {
+				urls = append(urls, fmt.Sprintf("http://%s:9222/json", a))
+			}
+		}
+	default: // url parameter has a default so will never be empty
+		urls = strings.Split(url, ",")
+	}
+	if len(urls) == 0 {
+		return nil, errors.New("at least one chrome instance must be reachable")
+	}
+
 	s := "s"
 	if len(urls) == 1 {
 		s = ""
 	}
 	logrus.Infof("using %d chrome instance%s as target%s", len(urls), s, s)
 
-	chromes := make(chan *cdp.CDP, len(urls))
+	ctx := context.Background()
+
+	chromes := make(chan *chromedp.CDP, len(urls))
 	for _, u := range urls {
 		u = strings.TrimSpace(u)
 		start := time.Now()
-		var c *cdp.CDP
+		var c *chromedp.CDP
 		var err error
 		for {
-			c, err = cdp.New(context.Background(),
-				cdp.WithTargets(client.New(client.URL(u)).WatchPageTargets(nil)),
-				cdp.WithErrorf(logrus.Errorf))
+			c, err = chromedp.New(ctx,
+				chromedp.WithTargets(client.New(client.URL(u)).WatchPageTargets(ctx)),
+				chromedp.WithErrorf(logrus.Errorf))
 			if err == nil ||
 				int(time.Now().Sub(start).Seconds()) > timeout {
 				break
@@ -113,12 +146,12 @@ func createCDPClients(url string, timeout int) chan *cdp.CDP {
 			logrus.Debugf("trying '%s' again after %s", u, err)
 		}
 		if err != nil {
-			log.Fatalf("%s", err)
+			return nil, err
 		}
 		chromes <- c
 	}
 
-	return chromes
+	return chromes, nil
 }
 
 func htmlHandler(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +186,7 @@ func dataHandler(images *imageMap) http.HandlerFunc {
 	}
 }
 
-func mainHandler(images *imageMap, chromes chan *cdp.CDP, selfURL string) http.HandlerFunc {
+func mainHandler(images *imageMap, chromes chan *chromedp.CDP, selfURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h := sha256.New()
 		h.Write([]byte(time.Now().UTC().String()))

@@ -5,29 +5,28 @@ services:
     ports:
       - "8544:8544"
     environment:
-      - SVG2PNG_URL=http://chrome0:9223/json,http://chrome1:9222/json,http://chrome2:9222/json,http://chrome3:9222/json
+      - SVG2PNG_HOSTS=chrome0,chrome1,chrome2,chrome3
       - SVG2PNG_TIMEOUT=30
-      - SVG2PNG_SELF=svg2png
   chrome0:
-    #image: knqz/chrome-headless:61.0.3114.2
-    image: yukinying/chrome-headless:61.0.3163.2
-    entrypoint:
-      - /chrome/headless_shell
-      - --no-sandbox
-      - --hide-scrollbars
-      - --remote-debugging-address=0.0.0.0
-      - --remote-debugging-port=9223
-    ports:
-      - "9223:9223"
+    image: yukinying/chrome-headless-browser:74.0.3729.6
+    command: --no-sandbox --disable-gpu
+    expose:
+      - "9222"
   chrome1:
-    image: yukinying/chrome-headless:61.0.3163.2
-    ports:
-      - "9222:9222"
+    image: yukinying/chrome-headless-browser:74.0.3729.6
+    command: --no-sandbox --disable-gpu
+    expose:
+      - "9222"
   chrome2:
-    image: yukinying/chrome-headless:61.0.3163.2
+    image: yukinying/chrome-headless-browser:74.0.3729.6
+    command: --no-sandbox --disable-gpu
     expose:
       - "9222"
   chrome3:
-    image: yukinying/chrome-headless:61.0.3163.2
+    image: yukinying/chrome-headless-browser:74.0.3729.6
+    command: --no-sandbox --disable-gpu --remote-debugging-address=0.0.0.0
     expose:
       - "9222"
+#  bash:
+#    image: debian
+#    entrypoint: /bin/sleep 10000

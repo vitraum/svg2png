@@ -1,4 +1,4 @@
-FROM golang:1.9.1 as builder
+FROM golang:1.12 as builder
 ADD . /go/src/github.com/vitraum/svg2png
 RUN CGO_ENABLED=0 go build -tags netgo -ldflags "-s -w -extldflags '-static'" -o /go/bin/svg2png github.com/vitraum/svg2png
 
